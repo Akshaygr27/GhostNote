@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+beanie>=2.0.0
+pydantic>=2.0
+pydantic-settings
+python-dotenv
+pytest
+pytest-asyncio
+httpx
+playwright
