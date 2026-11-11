@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from time import perf_counter
+from app.routers import auth
 
 from fastapi import FastAPI, Request
 
@@ -44,7 +45,7 @@ app = FastAPI(
 
 # Register routers
 app.include_router(health.router)
-
+app.include_router(auth.router)
 
 # Request logging middleware
 @app.middleware("http")
