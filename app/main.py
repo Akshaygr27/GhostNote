@@ -2,8 +2,19 @@ from contextlib import asynccontextmanager
 from time import perf_counter
 from app.routers import auth
 from app.routers import messages
+from pymongo.errors import ConnectionFailure
+from fastapi.exceptions import RequestValidationError
 
 from fastapi import FastAPI, Request
+
+from app.core.exceptions import MessageNotFoundException
+
+from app.core.exception_handlers import (
+    database_exception_handler,
+    validation_exception_handler,
+    message_not_found_handler,
+    unexpected_exception_handler
+)
 
 from app.core.config import settings
 from app.core.database import (
@@ -43,6 +54,27 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Centralized exception handlers
+
+app.add_exception_handler(
+    ConnectionFailure,
+    database_exception_handler
+)
+
+app.add_exception_handler(
+    RequestValidationError,
+    validation_exception_handler
+)
+
+app.add_exception_handler(
+    MessageNotFoundException,
+    message_not_found_handler
+)
+
+app.add_exception_handler(
+    Exception,
+    unexpected_exception_handler
+)
 
 # Register routers
 app.include_router(health.router)

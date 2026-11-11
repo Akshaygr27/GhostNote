@@ -1,10 +1,9 @@
 from bson import ObjectId
 
-from fastapi import HTTPException
+from app.core.exceptions import MessageNotFoundException
 
 from app.models.message import Message
 
-from pymongo.errors import PyMongoError
 
 
 # Create message
@@ -50,10 +49,7 @@ async def like_message(
 
     if not ObjectId.is_valid(message_id):
 
-        raise HTTPException(
-            status_code=404,
-            detail="Message not found"
-        )
+        raise MessageNotFoundException(message_id)
 
     object_id = ObjectId(message_id)
 
@@ -61,36 +57,30 @@ async def like_message(
 
     collection = Message.get_pymongo_collection()
 
-    try:
+   
+    # Atomic update:
+    # Add user ID only if it does not already exist.
+    # Increment likes_count only when the user is new.
 
-        # Atomic update:
-        # Add user ID only if it does not already exist.
-        # Increment likes_count only when the user is new.
+    result = await collection.update_one(
 
-        result = await collection.update_one(
+        {
+            "_id": object_id,
+            "liked_by": {"$ne": user_id}
+        },
 
-            {
-                "_id": object_id,
-                "liked_by": {"$ne": user_id}
+        {
+            "$addToSet": {
+                "liked_by": user_id
             },
 
-            {
-                "$addToSet": {
-                    "liked_by": user_id
-                },
-
-                "$inc": {
-                    "likes_count": 1
-                }
+            "$inc": {
+                "likes_count": 1
             }
-        )
 
-    except PyMongoError:
+        }
+    )
 
-        raise HTTPException(
-            status_code=500,
-            detail="Unable to process like"
-        )
 
     # Fetch updated message
 
@@ -98,10 +88,7 @@ async def like_message(
 
     if message is None:
 
-        raise HTTPException(
-            status_code=404,
-            detail="Message not found"
-        )
+        raise MessageNotFoundException(message_id)
 
     # If matched_count is zero, user already liked it
 
