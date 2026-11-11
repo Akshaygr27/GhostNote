@@ -11,6 +11,8 @@ PyJWT
 python-multipart
 email-validator
 
+nh3
+
 pytest
 pytest-asyncio
 httpx

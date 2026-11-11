@@ -5,6 +5,7 @@ from app.core.config import settings
 from app.core.logging_config import logger
 
 from app.models.user import User
+from app.models.message import Message
 
 
 client = None
@@ -27,7 +28,10 @@ async def connect_to_mongodb():
         # Initialize Beanie
         await init_beanie(
             database=client[settings.DATABASE_NAME],
-            document_models=[User]
+            document_models=[
+                User,
+                Message
+            ]
         )
 
         logger.info("MongoDB connected successfully")
