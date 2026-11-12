@@ -7,6 +7,7 @@ from app.core.logging_config import logger
 from app.models.user import User
 from app.models.message import Message
 
+from app.models.revoked_token import RevokedToken
 
 client = None
 
@@ -30,7 +31,8 @@ async def connect_to_mongodb():
             database=client[settings.DATABASE_NAME],
             document_models=[
                 User,
-                Message
+                Message,
+                RevokedToken
             ]
         )
 

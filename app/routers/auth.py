@@ -1,4 +1,10 @@
-from typing import Annotated
+from typing import (Annotated, Any)
+from datetime import datetime, timezone
+
+from pymongo.errors import DuplicateKeyError
+
+from app.models.revoked_token import RevokedToken
+from app.core.security import (get_token_payload, get_current_user, create_access_token)
 
 from fastapi import (
     APIRouter,
@@ -110,3 +116,36 @@ async def get_profile(
 ):
 
     return user_response(current_user)
+
+@router.post("/logout")
+async def logout(
+    payload: Annotated[
+        dict[str, Any],
+        Depends(get_token_payload)
+    ]
+):
+
+    token_id = payload["jti"]
+
+    expires_at = datetime.fromtimestamp(
+        payload["exp"],
+        tz=timezone.utc
+    )
+
+    collection = RevokedToken.get_pymongo_collection()
+
+    await collection.update_one(
+        {"jti": token_id},
+        {
+            "$setOnInsert": {
+                "jti": token_id,
+                "expires_at": expires_at
+            }
+        },
+        upsert=True
+    )
+
+    return {
+        "success": True,
+        "message": "Successfully logged out"
+    }

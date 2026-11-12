@@ -53,6 +53,7 @@ class MessageResponse(BaseModel):
     is_anonymous: bool
     likes_count: int
     created_at: datetime
+    liked_by_current_user: bool = False
 
 
 # Like response schema

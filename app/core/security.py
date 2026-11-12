@@ -1,5 +1,7 @@
+import uuid
+
 from datetime import datetime, timedelta, timezone
-from typing import Annotated
+from typing import Annotated, Any
 
 import jwt
 
@@ -13,31 +15,23 @@ from passlib.context import CryptContext
 
 from app.core.config import settings
 from app.models.user import User
+from app.models.revoked_token import RevokedToken
 
-
-# Password hashing configuration
 
 pwd_context = CryptContext(
     schemes=["bcrypt"],
     deprecated="auto"
 )
 
-
-# OAuth2 configuration
-
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/auth/login"
 )
 
 
-# Hash password
-
 def hash_password(password: str):
 
     return pwd_context.hash(password)
 
-
-# Verify password
 
 def verify_password(
     plain_password: str,
@@ -50,7 +44,7 @@ def verify_password(
     )
 
 
-# Generate JWT token
+# Generate JWT with unique token ID
 
 def create_access_token(subject: str):
 
@@ -62,24 +56,23 @@ def create_access_token(subject: str):
 
     payload = {
         "sub": subject,
+        "jti": str(uuid.uuid4()),
         "iat": now,
         "exp": expire
     }
 
-    token = jwt.encode(
+    return jwt.encode(
         payload,
         settings.SECRET_KEY,
         algorithm=settings.ALGORITHM
     )
 
-    return token
 
+# Verify JWT and check revocation
 
-# Verify JWT and retrieve user
-
-async def get_current_user(
+async def get_token_payload(
     token: Annotated[str, Depends(oauth2_scheme)]
-):
+) -> dict[str, Any]:
 
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -96,20 +89,50 @@ async def get_current_user(
         )
 
         user_id = payload.get("sub")
+        token_id = payload.get("jti")
 
-        if not isinstance(user_id, str):
+        if (
+            not isinstance(user_id, str)
+            or not ObjectId.is_valid(user_id)
+            or not isinstance(token_id, str)
+        ):
             raise credentials_exception
 
-        if not ObjectId.is_valid(user_id):
-            raise credentials_exception
+    except InvalidTokenError as exc:
 
-    except InvalidTokenError:
+        raise credentials_exception from exc
 
+    # Check whether token has been revoked
+
+    revoked_token = await RevokedToken.find_one(
+        RevokedToken.jti == token_id
+    )
+
+    if revoked_token is not None:
         raise credentials_exception
+
+    return payload
+
+
+# Get authenticated user
+
+async def get_current_user(
+    payload: Annotated[
+        dict[str, Any],
+        Depends(get_token_payload)
+    ]
+):
+
+    user_id = payload["sub"]
 
     user = await User.get(ObjectId(user_id))
 
     if user is None:
-        raise credentials_exception
+
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
 
     return user

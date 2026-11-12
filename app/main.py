@@ -2,8 +2,9 @@ from contextlib import asynccontextmanager
 from time import perf_counter
 from app.routers import auth
 from app.routers import messages
-from pymongo.errors import ConnectionFailure
+from pymongo.errors import (ConnectionFailure, DuplicateKeyError)
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 
 from fastapi import FastAPI, Request
 
@@ -13,7 +14,8 @@ from app.core.exception_handlers import (
     database_exception_handler,
     validation_exception_handler,
     message_not_found_handler,
-    unexpected_exception_handler
+    unexpected_exception_handler,
+    duplicate_key_exception_handler
 )
 
 from app.core.config import settings
@@ -74,6 +76,26 @@ app.add_exception_handler(
 app.add_exception_handler(
     Exception,
     unexpected_exception_handler
+)
+
+app.add_exception_handler(
+    DuplicateKeyError,
+    duplicate_key_exception_handler
+)
+
+app.add_middleware(
+    CORSMiddleware,
+
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173"
+    ],
+
+    allow_credentials=True,
+
+    allow_methods=["*"],
+
+    allow_headers=["*"]
 )
 
 # Register routers

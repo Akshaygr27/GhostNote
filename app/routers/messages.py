@@ -70,10 +70,14 @@ async def submit_message(
 
 @router.get(
     "",
-    response_model=list[MessageResponse]
+    response_model=list[MessageResponse],
 )
 async def list_messages(
 
+    current_user: Annotated[
+        User,
+        Depends(get_current_user)
+    ],
     limit: int = Query(
         default=20,
         ge=1,
@@ -93,7 +97,16 @@ async def list_messages(
     )
 
     return [
-        message_response(message)
+        MessageResponse(
+            id=str(message.id),
+            content=message.content,
+            is_anonymous=message.is_anonymous,
+            likes_count=message.likes_count,
+            created_at=message.created_at,
+            liked_by_current_user=(
+                str(current_user.id) in message.liked_by
+            )
+        )
         for message in messages
     ]
 

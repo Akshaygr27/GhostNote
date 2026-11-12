@@ -3,6 +3,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from pymongo.errors import ConnectionFailure
+from pymongo.errors import DuplicateKeyError
 
 from app.core.exceptions import MessageNotFoundException
 from app.core.logging_config import logger
@@ -112,5 +113,26 @@ async def unexpected_exception_handler(
             "success": False,
             "error_code": "INTERNAL_SERVER_ERROR",
             "message": "An unexpected error occurred"
+        }
+    )
+
+# 5. DUPLICATE KEY ERROR
+
+async def duplicate_key_exception_handler(
+    request: Request,
+    exc: DuplicateKeyError
+):
+    logger.warning(
+        "Duplicate database key: %s %s",
+        request.method,
+        request.url.path
+    )
+
+    return JSONResponse(
+        status_code=409,
+        content={
+            "success": False,
+            "error_code": "DUPLICATE_RESOURCE",
+            "message": "A resource with this value already exists"
         }
     )
